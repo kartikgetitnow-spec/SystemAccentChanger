@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-mic"
+version = "0.1.0"
+description = "AI Virtual Microphone with Gemini Live STS"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "sounddevice>=0.4.6",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "google-genai>=0.1.1",
+    "python-dotenv>=1.0.0",
+    "pydantic-settings>=2.0.0",
+    "loguru>=0.7.0",
+]
+
+[tool.setuptools]
+packages = ["src"]
+py-modules = ["config", "main"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+ignore = ["E501", "UP045"]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "python"]
+markers = [
+    "integration: Live integration tests with real Gemini API calls"
+]
+asyncio_mode = "strict"
+filterwarnings = [
+    "ignore::DeprecationWarning"
+]
