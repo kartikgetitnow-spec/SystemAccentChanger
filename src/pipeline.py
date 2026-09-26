@@ -208,11 +208,15 @@ class AIMicPipeline:
         if getattr(self.settings, "enable_accent_conversion", False):
             logger.info(
                 f"Accent conversion ACTIVE | {self.settings.source_accent} → "
-                f"{self.settings.target_accent} | tone={self.settings.accent_mode} | "
-                f"lang={self.settings.target_language} | voice={self.settings.effective_voice}"
+                f"{self.settings.target_accent} | gender={self.settings.voice_gender} | "
+                f"tone={self.settings.accent_mode} | lang={self.settings.target_language} | "
+                f"voice={self.settings.effective_voice}"
             )
         else:
-            logger.info("Accent conversion DISABLED — verbatim relay mode.")
+            logger.info(
+                f"Accent conversion DISABLED — verbatim relay mode "
+                f"(gender={self.settings.voice_gender}, voice={self.settings.effective_voice})."
+            )
 
         self.virtual_mic.start()
 

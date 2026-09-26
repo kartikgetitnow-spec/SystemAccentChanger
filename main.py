@@ -20,8 +20,9 @@ from src.logger import logger, setup_logger
 from src.pipeline import AIMicPipeline
 
 
-def show_devices() -> None:
+def show_devices(app_settings: Settings | None = None) -> None:
     """Print available audio devices + current configuration."""
+    s = app_settings or settings
     devices = list_audio_devices()
     print("\n" + "=" * 65)
     print("AVAILABLE AUDIO DEVICES")
@@ -39,9 +40,10 @@ def show_devices() -> None:
 
     print("\n" + "-" * 65)
     print("CURRENT CONFIGURATION:")
-    print(f"  Input Device:       {settings.input_device} (resolved: {settings.resolved_input_device})")
-    print(f"  Output Device:      {settings.output_device} (resolved: {settings.resolved_output_device})")
-    print(f"  Virtual Mic Device: {settings.virtual_mic_device} (resolved: {settings.resolved_virtual_mic_device})")
+    print(f"  Input Device:       {s.input_device} (resolved: {s.resolved_input_device})")
+    print(f"  Output Device:      {s.output_device} (resolved: {s.resolved_output_device})")
+    print(f"  Virtual Mic Device: {s.virtual_mic_device} (resolved: {s.resolved_virtual_mic_device})")
+    print(f"  Voice:              {s.effective_voice} (gender: {s.voice_gender})")
     print("=" * 65 + "\n")
 
 
@@ -144,6 +146,14 @@ def parse_args() -> argparse.Namespace:
         help="Output language (english, hindi, spanish, ...). Default: english",
     )
     parser.add_argument(
+        "--gender", "--voice-gender", "--voice-type",
+        dest="voice_gender",
+        type=str,
+        choices=["male", "female"],
+        default=None,
+        help="AI voice gender/type (male | female). Default: male",
+    )
+    parser.add_argument(
         "--no-accent-conversion",
         dest="no_accent_conversion",
         action="store_true",
@@ -157,12 +167,7 @@ async def async_main(args: argparse.Namespace) -> None:
     log_level = args.log_level or settings.log_level
     setup_logger(log_level=log_level)
 
-    # 2. --list-devices
-    if args.list_devices:
-        show_devices()
-        return
-
-    # 3. Apply CLI overrides
+    # 2. Apply CLI overrides
     override_kwargs: dict = {}
     if args.input_device is not None:
         override_kwargs["input_device"] = args.input_device
@@ -183,10 +188,19 @@ async def async_main(args: argparse.Namespace) -> None:
         override_kwargs["source_accent"] = args.source_accent
     if args.target_language is not None:
         override_kwargs["target_language"] = args.target_language
+    if args.voice_gender is not None:
+        override_kwargs["voice_gender"] = args.voice_gender
+        if args.voice is None:
+            override_kwargs["gemini_voice"] = None
     if args.no_accent_conversion:
         override_kwargs["enable_accent_conversion"] = False
 
     app_settings = settings.model_copy(update=override_kwargs)
+
+    # 3. --list-devices
+    if args.list_devices:
+        show_devices(app_settings)
+        return
 
     # 4. Validate virtual mic
     target_vmic = app_settings.resolved_virtual_mic_device
@@ -204,16 +218,18 @@ async def async_main(args: argparse.Namespace) -> None:
     else:
         logger.info(
             f"Model: {app_settings.effective_model}, "
-            f"Voice: {app_settings.effective_voice}"
+            f"Voice: {app_settings.effective_voice} ({app_settings.voice_gender})"
         )
         if app_settings.enable_accent_conversion:
             logger.info(
                 f"Accent conversion: {app_settings.source_accent} → "
-                f"{app_settings.target_accent} | tone={app_settings.accent_mode} | "
-                f"lang={app_settings.target_language}"
+                f"{app_settings.target_accent} | gender={app_settings.voice_gender} | "
+                f"tone={app_settings.accent_mode} | lang={app_settings.target_language}"
             )
         else:
-            logger.info("Accent conversion: DISABLED (verbatim relay)")
+            logger.info(
+                f"Accent conversion: DISABLED (verbatim relay, gender={app_settings.voice_gender})"
+            )
         if args.system_prompt:
             logger.info(f"System Prompt override: '{args.system_prompt}'")
 

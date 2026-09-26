@@ -92,7 +92,7 @@ STEP 2 — REWRITE (style/tone only)
 
 STEP 3 — SPEAK
   Deliver the rewritten text as natural spoken audio in a clear
-  {s.target_accent.upper()} accent. Match native-like pronunciation,
+  {s.target_accent.upper()} accent with a natural {s.voice_gender.upper()} voice. Match native-like pronunciation,
   rhythm, stress, and intonation.
   Output language: {s.target_language}.
   Never say you are translating, rewriting, correcting, or assisting —

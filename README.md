@@ -111,8 +111,11 @@ GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-3.1-flash-live-preview
 GEMINI_LIVE_MODEL=gemini-3.1-flash-live-preview
 
-# Voice name: Puck | Charon | Aoede | Fenrir | Kore
-GEMINI_VOICE=Puck
+# AI Voice Gender: male | female (default: male)
+VOICE_GENDER=male
+
+# Optional: manually override with a specific voice name (Puck, Charon, Aoede, Fenrir, Kore)
+# GEMINI_VOICE=Puck
 
 # ------------------------------------------------------------------------------
 # 2. Audio Hardware & Virtual Devices
@@ -199,19 +202,27 @@ python main.py
 You can override any `.env` setting directly from the command line:
 
 ```bash
-# Convert to British accent with a friendly tone
-python main.py --target-accent british --mode friendly
+# Choose AI voice gender (male | female) - Default is male
+python main.py --gender female
+python main.py --gender male
+
+# Aliases also supported:
+python main.py --voice-type female
+python main.py --voice-gender male
+
+# Convert to British accent with female voice and friendly tone
+python main.py --target-accent british --gender female --mode friendly
 
 # Verbatim speech relay (keep original words, speak clearly with target accent)
 python main.py --no-accent-conversion
 
-# Use a specific Gemini voice
+# Use a specific Gemini voice directly by name (Puck, Charon, Aoede, Fenrir, Kore)
 python main.py --voice Charon
 
 # Pass a custom system instruction prompt
 python main.py --system-prompt "You are a voice translator. Translate Spanish speech to clear English."
 
-# View available audio devices
+# View available audio devices and active voice configuration
 python main.py --list-devices
 ```
 

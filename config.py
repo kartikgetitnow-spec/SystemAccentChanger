@@ -1,6 +1,6 @@
 from typing import ClassVar, Optional, Union
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,7 +23,11 @@ class Settings(BaseSettings):
     gemini_live_model: Optional[str] = Field(
         default=None, alias="GEMINI_LIVE_MODEL"
     )
-    gemini_voice: str = Field(default="Puck", alias="GEMINI_VOICE")
+    gemini_voice: Optional[str] = Field(
+        default=None,
+        alias="GEMINI_VOICE",
+        description="Explicit Gemini voice override (Puck, Charon, Aoede, Fenrir, Kore)",
+    )
 
     # ------------------------------------------------------------------
     # Audio devices
@@ -77,10 +81,34 @@ class Settings(BaseSettings):
     target_accent: str = Field(default="american", alias="TARGET_ACCENT")
     source_accent: str = Field(default="indian", alias="SOURCE_ACCENT")
     target_language: str = Field(default="english", alias="TARGET_LANGUAGE")
+    voice_gender: str = Field(
+        default="male",
+        alias="VOICE_GENDER",
+        description="Target voice gender/type: male | female (default: male)",
+    )
+    voice_type: Optional[str] = Field(
+        default=None,
+        alias="VOICE_TYPE",
+        description="Alias for VOICE_GENDER (male | female)",
+    )
 
     # ------------------------------------------------------------------
     # Class-level lookup tables (must be ClassVar so Pydantic ignores them)
     # ------------------------------------------------------------------
+    ACCENT_GENDER_VOICE_MAP: ClassVar[dict[str, dict[str, str]]] = {
+        "american": {"male": "Puck", "female": "Aoede"},
+        "british": {"male": "Charon", "female": "Aoede"},
+        "australian": {"male": "Fenrir", "female": "Kore"},
+        "indian": {"male": "Puck", "female": "Kore"},
+        "neutral": {"male": "Puck", "female": "Aoede"},
+    }
+
+    DEFAULT_GENDER_VOICES: ClassVar[dict[str, str]] = {
+        "male": "Puck",
+        "female": "Aoede",
+    }
+
+    # Backwards-compatibility alias
     ACCENT_VOICE_MAP: ClassVar[dict[str, str]] = {
         "american": "Puck",
         "british": "Charon",
@@ -172,6 +200,21 @@ class Settings(BaseSettings):
             raise ValueError(f"log_level must be one of {sorted(allowed)}")
         return v
 
+    @field_validator("voice_gender")
+    @classmethod
+    def _validate_voice_gender(cls, v: str) -> str:
+        allowed = {"male", "female"}
+        v = v.strip().lower()
+        if v not in allowed:
+            raise ValueError(f"voice_gender must be one of {sorted(allowed)}")
+        return v
+
+    @model_validator(mode="after")
+    def _sync_voice_settings(self) -> "Settings":
+        if self.voice_type and self.voice_type.strip().lower() in ("male", "female"):
+            self.voice_gender = self.voice_type.strip().lower()
+        return self
+
     # ------------------------------------------------------------------
     # Derived properties
     # ------------------------------------------------------------------
@@ -181,9 +224,28 @@ class Settings(BaseSettings):
 
     @property
     def effective_voice(self) -> str:
+        # If an explicit voice override is set, check if it conflicts with an explicit gender choice
+        if self.gemini_voice and self.gemini_voice.strip():
+            v = self.gemini_voice.strip()
+            # If user selected female but voice is one of the default male voices, respect female
+            if self.voice_gender == "female" and v in ("Puck", "Charon", "Fenrir"):
+                pass
+            # If user selected male but voice is one of the default female voices, respect male
+            elif self.voice_gender == "male" and v in ("Aoede", "Kore"):
+                pass
+            else:
+                return v
+
         if self.enable_accent_conversion:
-            return self.ACCENT_VOICE_MAP.get(self.target_accent, self.gemini_voice)
-        return self.gemini_voice
+            gender_map = self.ACCENT_GENDER_VOICE_MAP.get(
+                self.target_accent,
+                self.ACCENT_GENDER_VOICE_MAP.get("neutral", {}),
+            )
+            mapped = gender_map.get(self.voice_gender)
+            if mapped:
+                return mapped
+
+        return self.DEFAULT_GENDER_VOICES.get(self.voice_gender, "Puck")
 
     @staticmethod
     def _resolve_device_id(
